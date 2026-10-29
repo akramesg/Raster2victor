@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raster2Vector Studio — Interactive SVG Vectorizer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M4 18L10 6L15 14L18 10L21 18H4Z" fill="url(#grad1)" stroke="#38bdf8" stroke-width="1.5" stroke-linejoin="round"/>
+            <circle cx="10" cy="6" r="2.2" fill="#f8fafc" stroke="#0284c7" stroke-width="1.5"/>
+            <circle cx="15" cy="14" r="2.2" fill="#f8fafc" stroke="#0284c7" stroke-width="1.5"/>
+            <circle cx="18" cy="10" r="2.2" fill="#f8fafc" stroke="#0284c7" stroke-width="1.5"/>
+            <defs>
+              <linearGradient id="grad1" x1="4" y1="6" x2="21" y2="18" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#38bdf8" stop-opacity="0.7"/>
+                <stop offset="1" stop-color="#818cf8" stop-opacity="0.7"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Raster2Vector <span class="brand-badge">STUDIO</span></h1>
+          <p class="brand-subtitle">Real-time Image to SVG Tracer &amp; Mesh Engine</p>
+        </div>
+      </div>
+
+      <!-- Sample & Upload Bar -->
+      <div class="source-bar">
+        <label class="btn btn-secondary upload-btn" for="file-input" title="Upload PNG, JPG, WebP, or paste image (Ctrl+V)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span>Open Image</span>
+          <input type="file" id="file-input" accept="image/*" hidden />
+        </label>
+
+        <div class="sample-pills" id="sample-pills" role="group" aria-label="Sample Images">
+          <!-- Populated dynamically from SAMPLE_PRESETS -->
+        </div>
+      </div>
+
+      <!-- View & Export Controls -->
+      <div class="header-actions">
+        <div class="segmented-control" id="view-mode-group" role="group" aria-label="Comparison View Mode">
+          <button type="button" class="seg-btn active" data-view="split" title="Interactive Split-Screen Comparison">Split</button>
+          <button type="button" class="seg-btn" data-view="vector" title="Vector Output Only">Vector</button>
+          <button type="button" class="seg-btn" data-view="onion" title="Onion-Skin Opacity Blend">Onion</button>
+          <button type="button" class="seg-btn" data-view="side" title="Side-by-Side Original vs Vector">Dual</button>
+        </div>
+
+        <div class="overlay-toggles">
+          <button type="button" class="btn btn-ghost toggle-pill" id="btn-wireframe" title="Toggle Vector Wireframe Outlines">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+            <span>Wireframe</span>
+          </button>
+          <button type="button" class="btn btn-ghost toggle-pill" id="btn-nodes" title="Show Anchor Vertices / Nodes">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="6" cy="6" r="3"/>
+              <circle cx="18" cy="6" r="3"/>
+              <circle cx="12" cy="18" r="3"/>
+              <line x1="8.5" y1="7.5" x2="15.5" y2="7.5"/>
+              <line x1="7.5" y1="8.5" x2="10.8" y2="15.5"/>
+              <line x1="16.5" y1="8.5" x2="13.2" y2="15.5"/>
+            </svg>
+            <span>Nodes</span>
+          </button>
+        </div>
+
+        <div class="export-group">
+          <button type="button" class="btn btn-secondary" id="btn-inspect-svg" title="Inspect &amp; Copy Raw SVG Code">
+            <span>&lt;/&gt; Code</span>
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-export-png" title="Export High-Res Rasterized Vector PNG (2x)">
+            <span>PNG</span>
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-download-svg" title="Download Scalable Vector Graphics (.svg)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Export SVG</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Studio Workspace -->
+    <main class="workspace">
+      <!-- Left Sidebar: Vectorization Parameters -->
+      <aside class="panel panel-left">
+        <!-- Vectorization Mode Selector -->
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Vectorization Engine</span>
+          </div>
+          <div class="mode-tabs" id="mode-tabs">
+            <button type="button" class="mode-tab active" data-mode="color">
+              <span class="mode-icon">🎨</span>
+              <span class="mode-name">Multi-Color</span>
+              <span class="mode-desc">Layered SVG</span>
+            </button>
+            <button type="button" class="mode-tab" data-mode="bw">
+              <span class="mode-icon">✒️</span>
+              <span class="mode-name">B&amp;W / Ink</span>
+              <span class="mode-desc">Stencil &amp; Edges</span>
+            </button>
+            <button type="button" class="mode-tab" data-mode="lowpoly">
+              <span class="mode-icon">💎</span>
+              <span class="mode-name">Low-Poly</span>
+              <span class="mode-desc">Delaunay Mesh</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Style Presets & Auto-Match Optimizer -->
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Fidelity &amp; Style Presets</span>
+            <span class="fidelity-pill" id="fidelity-badge" title="Perceptual similarity score compared to original raster image">Match: --%</span>
+          </div>
+
+          <button type="button" class="btn-auto-match" id="btn-auto-match" title="Analyze image colors, edges, and noise to automatically pick settings closest to the original image">
+            <div class="auto-match-icon">✨</div>
+            <div class="auto-match-text">
+              <span class="auto-match-title">Best Match to Original</span>
+              <span class="auto-match-sub" id="auto-match-sub">Auto-tune colors, resolution &amp; precision</span>
+            </div>
+          </button>
+
+          <div class="preset-grid" id="style-presets">
+            <button type="button" class="preset-chip active" data-preset="illustration">Crisp Illustration</button>
+            <button type="button" class="preset-chip" data-preset="poster">Flat Poster (6c)</button>
+            <button type="button" class="preset-chip" data-preset="hd_photo">HD Detailed (20c)</button>
+            <button type="button" class="preset-chip" data-preset="logo">Minimal Logo (4c)</button>
+            <button type="button" class="preset-chip" data-preset="stencil">Ink Stamp</button>
+            <button type="button" class="preset-chip" data-preset="lineart">Edge Line Art</button>
+            <button type="button" class="preset-chip" data-preset="crystal">Crystal Mesh</button>
+          </div>
+        </div>
+
+        <!-- Scrollable Controls Container -->
+        <div class="controls-scroll">
+          <!-- MULTI-COLOR CONTROLS -->
+          <div class="panel-section mode-panel" id="panel-color">
+            <div class="section-header">
+              <span class="section-title">Color Quantization</span>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-num-colors">Number of Colors</label>
+                <span class="control-val" id="val-num-colors">10</span>
+              </div>
+              <input type="range" id="ctrl-num-colors" min="2" max="32" step="1" value="10" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-stacking">Layer Stacking</label>
+              </div>
+              <select id="ctrl-stacking" class="select-input">
+                <option value="stacked" selected>Hierarchical Stacked (Zero Seams)</option>
+                <option value="cutout">Cutout Non-Overlapping (Exact Holes)</option>
+              </select>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-gap-fix" title="Adds a thin matching stroke to prevent anti-aliasing gaps between adjacent shapes">Anti-Gap Stroke</label>
+                <span class="control-val" id="val-gap-fix">0.4 px</span>
+              </div>
+              <input type="range" id="ctrl-gap-fix" min="0" max="1.5" step="0.1" value="0.4" />
+            </div>
+          </div>
+
+          <!-- B&W / MONOCHROME CONTROLS -->
+          <div class="panel-section mode-panel hidden" id="panel-bw">
+            <div class="section-header">
+              <span class="section-title">Monochrome &amp; Edge Tracing</span>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-bw-mode">Tracing Method</label>
+              </div>
+              <select id="ctrl-bw-mode" class="select-input">
+                <option value="threshold" selected>Luminance Threshold (Stencil)</option>
+                <option value="adaptive">Adaptive Local Sketch</option>
+                <option value="edges">Sobel Edge Detection (Line Art)</option>
+              </select>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-threshold">Threshold / Sensitivity</label>
+                <span class="control-val" id="val-threshold">135</span>
+              </div>
+              <input type="range" id="ctrl-threshold" min="15" max="245" step="1" value="135" />
+            </div>
+
+            <div class="control-row inline-checks">
+              <label class="checkbox-label">
+                <input type="checkbox" id="ctrl-bw-invert" />
+                <span>Invert Mask</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="ctrl-bw-trans" />
+                <span>Transparent BG</span>
+              </label>
+            </div>
+
+            <div class="control-row color-pair-row">
+              <div class="color-Mini">
+                <label for="ctrl-fg-color">Ink Color</label>
+                <input type="color" id="ctrl-fg-color" value="#111827" />
+              </div>
+              <div class="color-Mini">
+                <label for="ctrl-bg-color">Paper Color</label>
+                <input type="color" id="ctrl-bg-color" value="#ffffff" />
+              </div>
+            </div>
+          </div>
+
+          <!-- LOW-POLY CONTROLS -->
+          <div class="panel-section mode-panel hidden" id="panel-lowpoly">
+            <div class="section-header">
+              <span class="section-title">Delaunay Triangulation</span>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-poly-points">Mesh Density (Vertices)</label>
+                <span class="control-val" id="val-poly-points">900</span>
+              </div>
+              <input type="range" id="ctrl-poly-points" min="150" max="2600" step="50" value="900" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-poly-edge">Edge Concentration</label>
+                <span class="control-val" id="val-poly-edge">75%</span>
+              </div>
+              <input type="range" id="ctrl-poly-edge" min="0" max="100" step="5" value="75" />
+            </div>
+          </div>
+
+          <!-- GEOMETRY, SMOOTHING & COMPLEXITY (Shared by Color & B&W) -->
+          <div class="panel-section" id="panel-geometry">
+            <div class="section-header">
+              <span class="section-title">Path Geometry &amp; Smoothing</span>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-smoothing" title="0 = crisp straight polygon segments, higher = smooth cubic Bézier curves">Curve Smoothing</label>
+                <span class="control-val" id="val-smoothing">0.65</span>
+              </div>
+              <input type="range" id="ctrl-smoothing" min="0" max="1.2" step="0.05" value="0.65" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-simplify" title="Lower = higher complexity &amp; faithful detail; Higher = fewer nodes &amp; cleaner curves">Path Simplification (RDP)</label>
+                <span class="control-val" id="val-simplify">1.0 px</span>
+              </div>
+              <input type="range" id="ctrl-simplify" min="0.2" max="4.0" step="0.1" value="1.0" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-corners" title="Angles sharper than this threshold stay crisp instead of being rounded">Corner Sharpness</label>
+                <span class="control-val" id="val-corners">55°</span>
+              </div>
+              <input type="range" id="ctrl-corners" min="15" max="120" step="5" value="55" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-despeckle" title="Removes isolated pixel islands smaller than this area">Speckle Filter (Min Area)</label>
+                <span class="control-val" id="val-despeckle">16 px²</span>
+              </div>
+              <input type="range" id="ctrl-despeckle" min="1" max="150" step="1" value="16" />
+            </div>
+          </div>
+
+          <!-- PRE-PROCESSING & IMAGE ADJUSTMENTS -->
+          <div class="panel-section">
+            <div class="section-header">
+              <span class="section-title">Pre-Processing &amp; Detail</span>
+              <button type="button" class="btn-link" id="btn-reset-preproc">Reset</button>
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-resolution" title="Working raster resolution before tracing">Analysis Resolution</label>
+                <span class="control-val" id="val-resolution">520 px</span>
+              </div>
+              <input type="range" id="ctrl-resolution" min="240" max="960" step="40" value="520" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-blur" title="Smooths noisy gradients and JPEG artifacts before quantization">Pre-Blur Denoise</label>
+                <span class="control-val" id="val-blur">1 px</span>
+              </div>
+              <input type="range" id="ctrl-blur" min="0" max="5" step="1" value="1" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-contrast">Contrast</label>
+                <span class="control-val" id="val-contrast">0</span>
+              </div>
+              <input type="range" id="ctrl-contrast" min="-60" max="60" step="5" value="0" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-saturation">Saturation</label>
+                <span class="control-val" id="val-saturation">0</span>
+              </div>
+              <input type="range" id="ctrl-saturation" min="-100" max="80" step="5" value="0" />
+            </div>
+
+            <div class="control-row">
+              <div class="control-label">
+                <label for="ctrl-brightness">Brightness</label>
+                <span class="control-val" id="val-brightness">0</span>
+              </div>
+              <input type="range" id="ctrl-brightness" min="-60" max="60" step="5" value="0" />
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center Stage: Interactive Viewport -->
+      <section class="stage-container" id="stage-container">
+        <!-- Onion Skin Opacity Bar (Visible only in Onion mode) -->
+        <div class="onion-bar hidden" id="onion-bar">
+          <span>Original Raster</span>
+          <input type="range" id="ctrl-onion-opacity" min="0" max="100" value="65" />
+          <span>Vector SVG (<strong id="val-onion-opacity">65%</strong>)</span>
+        </div>
+
+        <!-- Viewport Canvas Wrapper -->
+        <div class="viewport bg-checker" id="viewport">
+          <!-- Zoom/Pan Transform Container -->
+          <div class="canvas-stage" id="canvas-stage">
+            <!-- Raster Original Layer -->
+            <div class="layer-raster" id="layer-raster">
+              <canvas id="raster-canvas"></canvas>
+              <span class="corner-tag tag-raster" id="tag-raster">ORIGINAL RASTER</span>
+            </div>
+
+            <!-- Vector SVG Layer -->
+            <div class="layer-vector" id="layer-vector">
+              <div class="svg-mount" id="svg-mount"></div>
+              <span class="corner-tag tag-vector" id="tag-vector">VECTOR SVG</span>
+            </div>
+
+            <!-- Draggable Split Curtain Divider -->
+            <div class="split-divider" id="split-divider" title="Drag left/right to compare Original vs Vector">
+              <div class="split-handle">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Drag & Drop Overlay -->
+          <div class="drop-overlay hidden" id="drop-overlay">
+            <div class="drop-box">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <p>Drop Image Here to Vectorize</p>
+              <span>Supports PNG, JPG, WebP, SVG, GIF</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Canvas Navigation & Backdrop HUD -->
+        <div class="canvas-hud">
+          <div class="hud-group">
+            <button type="button" class="hud-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+            <span class="zoom-readout" id="zoom-readout">100%</span>
+            <button type="button" class="hud-btn" id="btn-zoom-in" title="Zoom In">+</button>
+            <button type="button" class="hud-btn" id="btn-zoom-fit" title="Fit to Screen">Fit</button>
+          </div>
+          <div class="hud-divider"></div>
+          <div class="hud-group" id="backdrop-group" role="group" aria-label="Canvas Backdrop">
+            <button type="button" class="hud-btn active" data-bg="checker" title="Transparency Checkerboard">🏁</button>
+            <button type="button" class="hud-btn" data-bg="dark" title="Dark Studio Backdrop">🌙</button>
+            <button type="button" class="hud-btn" data-bg="light" title="Light Paper Backdrop">☀️</button>
+          </div>
+        </div>
+
+        <!-- Bottom Live Telemetry & Metrics Bar -->
+        <footer class="metrics-bar">
+          <div class="metric-item">
+            <span class="metric-label">Match Fidelity:</span>
+            <strong class="metric-value metric-highlight" id="stat-fidelity">--%</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Dimensions:</span>
+            <strong class="metric-value" id="stat-dims">520 × 520</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Active Colors:</span>
+            <strong class="metric-value" id="stat-colors">10</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Vector Paths:</span>
+            <strong class="metric-value" id="stat-paths">0</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Anchor Nodes:</span>
+            <strong class="metric-value" id="stat-nodes">0</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Est. SVG Size:</span>
+            <strong class="metric-value" id="stat-size">0 KB</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Trace Time:</span>
+            <strong class="metric-value" id="stat-time">0 ms</strong>
+          </div>
+        </footer>
+      </section>
+
+      <!-- Right Sidebar: Interactive Color Palette & Layer Inspector -->
+      <aside class="panel panel-right">
+        <div class="panel-section palette-header-section">
+          <div class="section-header">
+            <span class="section-title">Palette &amp; Layers</span>
+            <span class="badge-count" id="palette-count-badge">10 layers</span>
+          </div>
+          <p class="panel-helper">
+            Click any swatch to recolor live, toggle visibility (👁️), or select layers to merge.
+          </p>
+          <div class="palette-actions">
+            <button type="button" class="btn btn-xs btn-secondary" id="btn-hide-bg" title="Toggle visibility of the largest background layer">
+              Toggle BG Layer
+            </button>
+            <button type="button" class="btn btn-xs btn-secondary" id="btn-merge-selected" disabled title="Merge checked color layers into one">
+              Merge Selected (0)
+            </button>
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-reset-palette" title="Re-extract automatic palette from image">
+              Auto-Extract
+            </button>
+          </div>
+        </div>
+
+        <!-- Layer Swatch List -->
+        <div class="palette-list" id="palette-list">
+          <!-- Populated dynamically -->
+        </div>
+      </aside>
+    </main>
+
+    <!-- SVG Code Inspector Modal -->
+    <div class="modal-backdrop hidden" id="code-modal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div>
+            <h3>Generated SVG Markup</h3>
+            <p class="modal-sub" id="modal-svg-stats">Clean, scalable vector paths</p>
+          </div>
+          <div class="modal-header-actions">
+            <button type="button" class="btn btn-primary" id="btn-copy-modal-svg">Copy SVG Code</button>
+            <button type="button" class="btn btn-ghost" id="btn-close-modal">✕</button>
+          </div>
+        </div>
+        <textarea class="code-viewer" id="svg-code-textarea" readonly spellcheck="false"></textarea>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast hidden" id="toast">Copied to clipboard!</div>
+  </div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
